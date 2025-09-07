@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Kasir - Point of Sale</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar-link.active { background-color: #1e40af; color: white; }
+        .modal { transition: opacity 0.3s ease; }
+        .toast { transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; }
+        @media print {
+            body * { visibility: hidden; }
+            #invoice-print-area, #invoice-print-area * { visibility: visible; }
+            #invoice-print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- LOADER -->
+    <div id="loader" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 space-y-2"></div>
+
+    <div class="flex h-screen">
+        <!-- SIDEBAR -->
+        <aside class="w-64 bg-blue-900 text-white flex flex-col">
+            <div class="p-6 text-2xl font-bold border-b border-blue-800">
+                <i class="fas fa-store mr-2"></i>JI GIFT SHOP
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <a href="#dashboard" class="sidebar-link active flex items-center px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt w-6"></i><span class="ml-3">Dashboard</span>
+                </a>
+                <a href="#stok" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors" data-page="stok">
+                    <i class="fas fa-box-open w-6"></i><span class="ml-3">Stok Barang</span>
+                </a>
+                <a href="#penjualan" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors" data-page="penjualan">
+                    <i class="fas fa-cash-register w-6"></i><span class="ml-3">Penjualan</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 p-8 overflow-y-auto">
+            <!-- DASHBOARD PAGE -->
+            <div id="dashboard-page" class="page">
+                <h1 class="text-3xl font-bold mb-6">Dashboard</h1>
+                <!-- Quick access to sale page -->
+                <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                    <h2 class="text-xl font-semibold mb-4">Mulai Transaksi Baru</h2>
+                    <p class="text-gray-600 mb-4">Klik tombol di bawah ini untuk memulai pencatatan penjualan baru.</p>
+                    <button id="goToPenjualan" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Buat Penjualan
+                    </button>
+                </div>
+                <!-- Recent Transactions -->
+                 <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Transaksi Terakhir</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="p-3">ID Transaksi</th>
+                                    <th class="p-3">Tanggal</th>
+                                    <th class="p-3">Total</th>
+                                    <th class="p-3">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-transactions-table">
+                                <!-- Data akan diisi oleh JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STOK BARANG PAGE -->
+            <div id="stok-page" class="page hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-3xl font-bold">Manajemen Stok Barang</h1>
+                    <button id="add-barang-btn" class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors"><i class="fas fa-plus mr-2"></i>Tambah Barang</button>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between mb-4">
+                        <input type="text" id="search-stok" class="border rounded-lg px-4 py-2 w-1/3" placeholder="Cari nama barang...">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="p-3">ID Barang</th>
+                                    <th class="p-3">Nama Barang</th>
+                                    <th class="p-3">Kategori</th>
+                                    <th class="p-3">Jumlah Stok</th>
+                                    <th class="p-3">Harga Satuan</th>
+                                    <th class="p-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stok-table-body">
+                                <!-- Data dari Google Sheet akan ditampilkan di sini -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PENJUALAN PAGE -->
+            <div id="penjualan-page" class="page hidden">
+                <h1 class="text-3xl font-bold mb-6">Pencatatan Penjualan</h1>
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Form Penjualan -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
+                        <h2 class="text-xl font-semibold mb-4">Form Penjualan</h2>
+                        <form id="form-add-to-cart">
+                            <div class="mb-4">
+                                <label for="barang-dropdown" class="block mb-2 font-medium">Pilih Barang</label>
+                                <select id="barang-dropdown" class="w-full border rounded-lg p-2" required>
+                                    <option value="">-- Pilih Barang --</option>
+                                    <!-- Options diisi oleh JS -->
+                                </select>
+                            </div>
+                             <div class="mb-4">
+                                <label for="jumlah-jual" class="block mb-2 font-medium">Jumlah</label>
+                                <input type="number" id="jumlah-jual" class="w-full border rounded-lg p-2" min="1" required>
+                                <small id="stok-tersedia-info" class="text-gray-500 mt-1"></small>
+                            </div>
+                            <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700">
+                                <i class="fas fa-cart-plus mr-2"></i>Tambah ke Keranjang
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Keranjang Belanja -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h2 class="text-xl font-semibold mb-4">Keranjang</h2>
+                        <div id="cart-items" class="space-y-3 mb-4">
+                           <!-- Item keranjang akan ditambahkan di sini -->
+                        </div>
+                        <div class="border-t pt-4">
+                            <div class="flex justify-between font-bold text-lg">
+                                <span>Total:</span>
+                                <span id="cart-total">Rp 0</span>
+                            </div>
+                            <button id="submit-penjualan" class="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400" disabled>
+                                <i class="fas fa-check-circle mr-2"></i>Selesaikan Penjualan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL TAMBAH/EDIT BARANG -->
+    <div id="barang-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 hidden">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="modal-title" class="text-2xl font-bold">Tambah Barang Baru</h2>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <form id="barang-form">
+                <input type="hidden" id="barang-id">
+                <div class="mb-4">
+                    <label for="nama-barang" class="block mb-2 font-medium">Nama Barang</label>
+                    <input type="text" id="nama-barang" class="w-full border rounded-lg p-2" required>
+                </div>
+                <div class="mb-4">
+                    <label for="kategori-barang" class="block mb-2 font-medium">Kategori</label>
+                    <input type="text" id="kategori-barang" class="w-full border rounded-lg p-2" required>
+                </div>
+                <div class="mb-4">
+                    <label for="jumlah-barang" class="block mb-2 font-medium">Jumlah Stok</label>
+                    <input type="number" id="jumlah-barang" class="w-full border rounded-lg p-2" required min="0">
+                </div>
+                <div class="mb-4">
+                    <label for="harga-barang" class="block mb-2 font-medium">Harga Satuan</label>
+                    <input type="number" id="harga-barang" class="w-full border rounded-lg p-2" required min="0">
+                </div>
+                <div class="text-right">
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- MODAL INVOICE -->
+    <div id="invoice-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 hidden">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-2xl">
+             <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Invoice Penjualan</h2>
+                <button id="close-invoice-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div id="invoice-print-area" class="p-6 border rounded-lg">
+                <!-- Invoice content will be populated by JS -->
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold">JI GIFT SHOP</h3>
+                        <p class="text-sm">Jalan Usaha No. 123, Kota Bisnis</p>
+                        <p class="text-sm">telepon: 0812-3456-7890</p>
+                    </div>
+                    <div class="text-right">
+                         <h1 class="text-3xl font-bold text-gray-700">INVOICE</h1>
+                         <p class="text-sm" id="invoice-id-display"></p>
+                         <p class="text-sm" id="invoice-date-display"></p>
+                    </div>
+                </div>
+                <div class="border-t my-4"></div>
+                <table class="w-full text-left mb-6">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-2">Nama Barang</th>
+                            <th class="p-2 text-center">Jumlah</th>
+                            <th class="p-2 text-right">Harga Satuan</th>
+                            <th class="p-2 text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoice-items-table">
+                        <!-- Items here -->
+                    </tbody>
+                </table>
+                <div class="flex justify-end">
+                    <div class="w-full max-w-xs">
+                        <div class="flex justify-between py-1">
+                            <span class="font-medium">Total:</span>
+                            <span class="font-bold text-lg" id="invoice-total-display"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-12 text-center text-sm text-gray-500">
+                    <p>Terima kasih telah berbelanja!</p>
+                </div>
+            </div>
+             <div class="text-right mt-6">
+                 <button id="print-invoice-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-print mr-2"></i>Cetak Invoice</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ===================================================================================
+// KONFIGURASI
+// ===================================================================================
+// Ganti dengan URL Web App Google Apps Script Anda setelah di-deploy
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzKxHzMU6fe_bZLtZ_7Kcj_nROU3i4GGVuRBJX1X-YxMKHvruOpftn_U-7xyJ--ntf0aA/exec';
+
+// ===================================================================================
+// ELEMEN DOM
+// ===================================================================================
+const loader = document.getElementById('loader');
+const pages = document.querySelectorAll('.page');
+const sidebarLinks = document.querySelectorAll('.sidebar-link');
+const stokTableBody = document.getElementById('stok-table-body');
+const addBarangBtn = document.getElementById('add-barang-btn');
+const barangModal = document.getElementById('barang-modal');
+const closeModalBtn = document.getElementById('close-modal-btn');
+const barangForm = document.getElementById('barang-form');
+const modalTitle = document.getElementById('modal-title');
+const searchStokInput = document.getElementById('search-stok');
+const barangDropdown = document.getElementById('barang-dropdown');
+const jumlahJualInput = document.getElementById('jumlah-jual');
+const stokTersediaInfo = document.getElementById('stok-tersedia-info');
+const formAddToCart = document.getElementById('form-add-to-cart');
+const cartItemsContainer = document.getElementById('cart-items');
+const cartTotalEl = document.getElementById('cart-total');
+const submitPenjualanBtn = document.getElementById('submit-penjualan');
+const recentTransactionsTable = document.getElementById('recent-transactions-table');
+const goToPenjualanBtn = document.getElementById('goToPenjualan');
+
+const invoiceModal = document.getElementById('invoice-modal');
+const closeInvoiceModalBtn = document.getElementById('close-invoice-modal-btn');
+const printInvoiceBtn = document.getElementById('print-invoice-btn');
+
+
+// ===================================================================================
+// STATE APLIKASI
+// ===================================================================================
+let allStok = [];
+let cart = [];
+
+// ===================================================================================
+// FUNGSI HELPER
+// ===================================================================================
+const showLoader = () => loader.classList.remove('hidden');
+const hideLoader = () => loader.classList.add('hidden');
+
+const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+const formatDate = (dateString) => new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+
+function showToast(message, type = 'success') {
+    const toastContainer = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+    const icon = type === 'success' ? '<i class="fas fa-check-circle mr-3"></i>' : '<i class="fas fa-exclamation-circle mr-3"></i>';
+    
+    toast.className = `toast text-white ${bgColor} p-4 rounded-lg shadow-lg flex items-center transform translate-x-full opacity-0`;
+    toast.innerHTML = `${icon}<span>${message}</span>`;
+    
+    toastContainer.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+        toast.classList.remove('translate-x-full', 'opacity-0');
+    }, 10);
+
+    // Animate out
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-full');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+
+// ===================================================================================
+// FUNGSI API (KOMUNIKASI DENGAN GOOGLE APPS SCRIPT)
+// ===================================================================================
+async function apiCall(action, payload = {}, method = 'GET') {
+    showLoader();
+    try {
+        let response;
+        if (method === 'GET') {
+            const url = new URL(SCRIPT_URL);
+            url.searchParams.append('action', action);
+            for (const key in payload) {
+                url.searchParams.append(key, payload[key]);
+            }
+            response = await fetch(url);
+        } else { // POST
+            response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action, payload }),
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.message || 'Terjadi kesalahan pada server');
+        }
+        return result.data;
+    } catch (error) {
+        console.error('API Call Error:', error);
+        showToast(error.message, 'error');
+        return null;
+    } finally {
+        hideLoader();
+    }
+}
+
+// ===================================================================================
+// LOGIKA MANAJEMEN STOK
+// ===================================================================================
+function renderStokTable(data) {
+    stokTableBody.innerHTML = '';
+    if (!data || data.length === 0) {
+        stokTableBody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-gray-500">Belum ada data barang.</td></tr>`;
+        return;
+    }
+    data.forEach(item => {
+        const row = document.createElement('tr');
+        row.className = 'border-b hover:bg-gray-50';
+        row.innerHTML = `
+            <td class="p-3">${item.id}</td>
+            <td class="p-3 font-medium">${item.nama}</td>
+            <td class="p-3">${item.kategori}</td>
+            <td class="p-3">${item.jumlah}</td>
+            <td class="p-3">${formatCurrency(item.harga)}</td>
+            <td class="p-3 text-center space-x-2">
+                <button class="edit-btn text-blue-600 hover:text-blue-800" data-id='${item.id}'><i class="fas fa-edit"></i></button>
+                <button class="delete-btn text-red-600 hover:text-red-800" data-id='${item.id}'><i class="fas fa-trash"></i></button>
+            </td>
+        `;
+        stokTableBody.appendChild(row);
+    });
+}
+
+async function fetchStok() {
+    const data = await apiCall('getStok');
+    if (data) {
+        allStok = data;
+        renderStokTable(allStok);
+        populateBarangDropdown();
+    }
+}
+
+function handleFormSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('barang-id').value;
+    const payload = {
+        id: id,
+        nama: document.getElementById('nama-barang').value,
+        kategori: document.getElementById('kategori-barang').value,
+        jumlah: parseInt(document.getElementById('jumlah-barang').value),
+        harga: parseFloat(document.getElementById('harga-barang').value)
+    };
+
+    if (id) {
+        // Update
+        apiCall('updateBarang', payload, 'POST').then(data => {
+            if (data) {
+                showToast('Barang berhasil diperbarui!');
+                closeModal();
+                fetchStok();
+            }
+        });
+    } else {
+        // Add new
+        apiCall('addBarang', payload, 'POST').then(data => {
+            if (data) {
+                showToast('Barang baru berhasil ditambahkan!');
+                closeModal();
+                fetchStok();
+            }
+        });
+    }
+}
+
+function openModalForEdit(id) {
+    const item = allStok.find(d => d.id === id);
+    if (!item) return;
+    
+    modalTitle.textContent = 'Edit Barang';
+    document.getElementById('barang-id').value = item.id;
+    document.getElementById('nama-barang').value = item.nama;
+    document.getElementById('kategori-barang').value = item.kategori;
+    document.getElementById('jumlah-barang').value = item.jumlah;
+    document.getElementById('harga-barang').value = item.harga;
+    
+    barangModal.classList.remove('hidden');
+}
+
+function openModalForNew() {
+    modalTitle.textContent = 'Tambah Barang Baru';
+    barangForm.reset();
+    document.getElementById('barang-id').value = '';
+    barangModal.classList.remove('hidden');
+}
+
+function closeModal() {
+    barangModal.classList.add('hidden');
+}
+
+function handleDelete(id) {
+    if (confirm('Apakah Anda yakin ingin menghapus barang ini? Stok akan hilang permanen.')) {
+        apiCall('deleteBarang', { id }, 'POST').then(data => {
+            if (data) {
+                showToast('Barang berhasil dihapus.');
+                fetchStok();
+            }
+        });
+    }
+}
+
+// ===================================================================================
+// LOGIKA PENJUALAN
+// ===================================================================================
+function populateBarangDropdown() {
+    barangDropdown.innerHTML = '<option value="">-- Pilih Barang --</option>';
+    allStok
+        .filter(item => item.jumlah > 0)
+        .forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = `${item.nama} (${formatCurrency(item.harga)})`;
+        option.dataset.stok = item.jumlah;
+        barangDropdown.appendChild(option);
+    });
+}
+
+function updateStokInfo() {
+    const selectedOption = barangDropdown.options[barangDropdown.selectedIndex];
+    if (selectedOption && selectedOption.value) {
+        const stok = selectedOption.dataset.stok;
+        stokTersediaInfo.textContent = `Stok tersedia: ${stok}`;
+        jumlahJualInput.max = stok;
+    } else {
+        stokTersediaInfo.textContent = '';
+        jumlahJualInput.max = null;
+    }
+}
+
+function addToCart(e) {
+    e.preventDefault();
+    const barangId = barangDropdown.value;
+    const jumlah = parseInt(jumlahJualInput.value);
+
+    if (!barangId || !jumlah || jumlah <= 0) {
+        showToast('Pilih barang dan masukkan jumlah yang valid.', 'error');
+        return;
+    }
+
+    const itemStok = allStok.find(item => item.id === barangId);
+    if (jumlah > itemStok.jumlah) {
+        showToast('Jumlah melebihi stok yang tersedia!', 'error');
+        return;
+    }
+    
+    const existingCartItem = cart.find(item => item.id === barangId);
+    if(existingCartItem) {
+        if(existingCartItem.jumlah + jumlah > itemStok.jumlah){
+            showToast('Total jumlah di keranjang melebihi stok!', 'error');
+            return;
+        }
+        existingCartItem.jumlah += jumlah;
+    } else {
+        cart.push({
+            id: itemStok.id,
+            nama: itemStok.nama,
+            harga: itemStok.harga,
+            jumlah: jumlah
+        });
+    }
+
+    updateCart();
+    formAddToCart.reset();
+    stokTersediaInfo.textContent = '';
+}
+
+function updateCart() {
+    cartItemsContainer.innerHTML = '';
+    let total = 0;
+    
+    if (cart.length === 0) {
+        cartItemsContainer.innerHTML = '<p class="text-gray-500">Keranjang kosong.</p>';
+        submitPenjualanBtn.disabled = true;
+    } else {
+        cart.forEach((item, index) => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'flex justify-between items-center text-sm';
+            itemEl.innerHTML = `
+                <div>
+                    <p class="font-semibold">${item.nama}</p>
+                    <p class="text-gray-600">${item.jumlah} x ${formatCurrency(item.harga)}</p>
+                </div>
+                <div class="flex items-center">
+                    <span class="font-bold mr-4">${formatCurrency(item.jumlah * item.harga)}</span>
+                    <button class="remove-cart-item text-red-500 hover:text-red-700" data-index="${index}"><i class="fas fa-times-circle"></i></button>
+                </div>
+            `;
+            cartItemsContainer.appendChild(itemEl);
+            total += item.jumlah * item.harga;
+        });
+        submitPenjualanBtn.disabled = false;
+    }
+    
+    cartTotalEl.textContent = formatCurrency(total);
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    updateCart();
+}
+
+async function processPenjualan() {
+    if (cart.length === 0) return;
+
+    const payload = {
+        items: cart,
+        total: cart.reduce((sum, item) => sum + item.jumlah * item.harga, 0)
+    };
+    
+    const result = await apiCall('createPenjualan', payload, 'POST');
+    if (result) {
+        showToast('Penjualan berhasil dicatat!');
+        cart = [];
+        updateCart();
+        fetchStok(); // Refresh stok
+        fetchRecentTransactions(); // Refresh dashboard
+        showInvoice(result); // Tampilkan invoice
+    }
+}
+
+// ===================================================================================
+// LOGIKA DASHBOARD
+// ===================================================================================
+async function fetchRecentTransactions() {
+    const data = await apiCall('getPenjualan', { limit: 5 });
+    if (data) {
+        renderRecentTransactions(data);
+    }
+}
+
+function renderRecentTransactions(data) {
+    recentTransactionsTable.innerHTML = '';
+     if (!data || data.length === 0) {
+        recentTransactionsTable.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-gray-500">Belum ada transaksi.</td></tr>`;
+        return;
+    }
+    data.forEach(trx => {
+        const row = document.createElement('tr');
+        row.className = 'border-b hover:bg-gray-50';
+        row.innerHTML = `
+            <td class="p-3">${trx.id}</td>
+            <td class="p-3">${formatDate(trx.tanggal)}</td>
+            <td class="p-3 font-medium">${formatCurrency(trx.total)}</td>
+            <td class="p-3">
+                <button class="view-invoice-btn text-blue-600 hover:text-blue-800" data-id='${trx.id}'>Lihat Invoice</button>
+            </td>
+        `;
+        recentTransactionsTable.appendChild(row);
+    });
+}
+
+// ===================================================================================
+// LOGIKA INVOICE
+// ===================================================================================
+function showInvoice(transactionData) {
+    document.getElementById('invoice-id-display').textContent = `No. Invoice: ${transactionData.id}`;
+    document.getElementById('invoice-date-display').textContent = `Tanggal: ${formatDate(transactionData.tanggal)}`;
+    
+    const itemsTable = document.getElementById('invoice-items-table');
+    itemsTable.innerHTML = '';
+    transactionData.items.forEach(item => {
+        const row = document.createElement('tr');
+        row.className = 'border-b';
+        row.innerHTML = `
+            <td class="p-2">${item.nama}</td>
+            <td class="p-2 text-center">${item.jumlah}</td>
+            <td class="p-2 text-right">${formatCurrency(item.harga)}</td>
+            <td class="p-2 text-right">${formatCurrency(item.jumlah * item.harga)}</td>
+        `;
+        itemsTable.appendChild(row);
+    });
+    
+    document.getElementById('invoice-total-display').textContent = formatCurrency(transactionData.total);
+    invoiceModal.classList.remove('hidden');
+}
+
+function closeInvoiceModal() {
+    invoiceModal.classList.add('hidden');
+}
+
+function printInvoice() {
+    window.print();
+}
+
+// ===================================================================================
+// NAVIGASI & EVENT LISTENERS
+// ===================================================================================
+function switchPage(pageId) {
+    pages.forEach(page => page.classList.add('hidden'));
+    document.getElementById(`${pageId}-page`).classList.remove('hidden');
+
+    sidebarLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.dataset.page === pageId) {
+            link.classList.add('active');
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchStok();
+    fetchRecentTransactions();
+
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const pageId = e.currentTarget.dataset.page;
+            switchPage(pageId);
+        });
+    });
+    
+    goToPenjualanBtn.addEventListener('click', () => switchPage('penjualan'));
+
+    // Stok listeners
+    addBarangBtn.addEventListener('click', openModalForNew);
+    closeModalBtn.addEventListener('click', closeModal);
+    barangForm.addEventListener('submit', handleFormSubmit);
+    stokTableBody.addEventListener('click', (e) => {
+        if (e.target.closest('.edit-btn')) {
+            openModalForEdit(e.target.closest('.edit-btn').dataset.id);
+        }
+        if (e.target.closest('.delete-btn')) {
+            handleDelete(e.target.closest('.delete-btn').dataset.id);
+        }
+    });
+    searchStokInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const filteredData = allStok.filter(item => item.nama.toLowerCase().includes(searchTerm));
+        renderStokTable(filteredData);
+    });
+
+    // Penjualan listeners
+    barangDropdown.addEventListener('change', updateStokInfo);
+    formAddToCart.addEventListener('submit', addToCart);
+    cartItemsContainer.addEventListener('click', e => {
+        if(e.target.closest('.remove-cart-item')) {
+            const index = e.target.closest('.remove-cart-item').dataset.index;
+            removeFromCart(index);
+        }
+    });
+    submitPenjualanBtn.addEventListener('click', processPenjualan);
+
+    // Dashboard listener
+    recentTransactionsTable.addEventListener('click', async e => {
+        if(e.target.classList.contains('view-invoice-btn')) {
+            const trxId = e.target.dataset.id;
+            const data = await apiCall('getPenjualan', { id: trxId });
+            if (data && data.length > 0) {
+                showInvoice(data[0]);
+            }
+        }
+    });
+    
+    // Invoice listeners
+    closeInvoiceModalBtn.addEventListener('click', closeInvoiceModal);
+    printInvoiceBtn.addEventListener('click', printInvoice);
+});
+
+</script>
+</body>
+</html>
